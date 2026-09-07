@@ -121,10 +121,13 @@ function updateStatusText() {
 }
 
 // Cell grid click listeners
+// --- Replace it with this version ---
 const cells = document.querySelectorAll('.cell');
 cells.forEach((cell, index) => {
     cell.addEventListener('click', () => {
-        if (currentTurn !== mySymbol || cell.innerText !== '') return;
+        // SAFETY GATE: If currentTurn is 'NONE', the game is over. Freeze the board!
+        if (currentTurn === 'NONE' || currentTurn !== mySymbol || cell.innerText !== '') return;
+        
         channel.publish('game-move', { action: 'move', index: index, symbol: mySymbol });
     });
 });
