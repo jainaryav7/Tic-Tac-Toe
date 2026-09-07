@@ -1,209 +1,269 @@
 :root {
-    --bg-color: #f0f2f5;
-    --card-bg: #ffffff;
-    --text-color: #333333;
-    --border-color: #cccccc;
-    --btn-bg: #e4e6eb;
-    --btn-active-bg: #007bff;
-    --btn-active-text: #ffffff;
-    --cell-bg: #f8f9fa;
-    --cell-hover: #e9ecef;
-    --shadow: 0 4px 12px rgba(0,0,0,0.1);
-    --x-color: #dc3545;
-    --o-color: #28a745;
+    --bg-main: #121214;
+    --bg-card: #1a1a1e;
+    --text-main: #ffffff;
+    --text-sub: #a0a0aa;
+    --border: #2e2e33;
+    --primary: #3b82f6;
+    --primary-hover: #2563eb;
+    --color-x: #ef4444;
+    --color-o: #10b981;
+    --color-draw: #f59e0b;
+    --cell-bg: #222226;
+    --cell-hover: #2a2a30;
 }
 
-[data-theme="dark"] {
-    --bg-color: #18191a;
-    --card-bg: #242526;
-    --text-color: #e4e6eb;
-    --border-color: #3a3b3c;
-    --btn-bg: #3a3b3c;
-    --btn-active-bg: #007bff;
-    --btn-active-text: #ffffff;
-    --cell-bg: #18191a;
-    --cell-hover: #3a3b3c;
-    --shadow: 0 4px 12px rgba(0,0,0,0.4);
+body.light-mode {
+    --bg-main: #f4f4f5;
+    --bg-card: #ffffff;
+    --text-main: #18181b;
+    --text-sub: #71717a;
+    --border: #e4e4e7;
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --cell-bg: #f4f4f5;
+    --cell-hover: #e4e4e7;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 body {
-    margin: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    background-color: var(--bg-main);
+    color: var(--text-main);
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     transition: background-color 0.3s, color 0.3s;
-}
-
-.container {
-    width: 100%;
-    max-width: 450px;
     padding: 20px;
-    box-sizing: border-box;
-    position: relative;
 }
 
-.theme-btn {
+.top-bar {
     position: absolute;
-    top: -30px;
-    right: 20px;
+    top: 20px;
+    width: 100%;
+    max-width: 500px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 10px;
+}
+
+#theme-toggle {
     background: none;
-    border: none;
-    color: var(--text-color);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    padding: 6px 12px;
+    border-radius: 20px;
     cursor: pointer;
-    font-size: 1rem;
+    font-size: 0.9rem;
+}
+
+#connection-status {
+    font-size: 0.85rem;
     font-weight: 600;
 }
 
 .card {
-    background-color: var(--card-bg);
-    padding: 30px;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border);
     border-radius: 16px;
-    box-shadow: var(--shadow);
+    padding: 30px;
+    width: 100%;
+    max-width: 450px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
     text-align: center;
-    transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+h1 {
+    font-size: 2rem;
+    margin-bottom: 8px;
+}
+
+.subtitle {
+    color: var(--text-sub);
+    font-size: 0.95rem;
+    margin-bottom: 24px;
+}
+
+.menu-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+button {
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.primary-btn {
+    background-color: var(--primary);
+    color: white;
+}
+
+.primary-btn:hover {
+    background-color: var(--primary-hover);
+}
+
+.secondary-btn {
+    background-color: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-main);
+}
+
+.secondary-btn:hover {
+    background-color: var(--cell-bg);
+}
+
+.divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: var(--text-sub);
+    font-size: 0.8rem;
+    margin: 10px 0;
+}
+
+.divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--border);
+}
+
+.divider span {
+    padding: 0 10px;
+}
+
+.info-text {
+    font-size: 0.85rem;
+    color: var(--text-sub);
+    line-height: 1.4;
 }
 
 .hidden {
     display: none !important;
 }
 
-h1 {
-    margin-top: 0;
-    margin-bottom: 25px;
-    font-size: 2.5rem;
-}
-
-.control-group {
-    margin-bottom: 20px;
-    text-align: left;
-}
-
-.control-group label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 600;
-}
-
-.mode-buttons, .diff-buttons {
+.link-box {
     display: flex;
-    gap: 10px;
+    margin-top: 10px;
+    gap: 5px;
 }
 
-.btn {
+#share-link-input {
     flex: 1;
-    padding: 12px;
-    border: none;
-    border-radius: 8px;
-    background-color: var(--btn-bg);
-    color: var(--text-color);
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.2s, color 0.2s;
-}
-
-.btn:hover {
-    opacity: 0.9;
-}
-
-.btn.active {
-    background-color: var(--btn-active-bg);
-    color: var(--btn-active-text);
-}
-
-.action-btn {
-    width: 100%;
-    background-color: #28a745;
-    color: white;
-    font-size: 1.2rem;
-    margin-top: 15px;
-}
-
-.game-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-}
-
-.secondary-btn {
-    background: none;
-    border: 1px solid var(--border-color);
-    color: var(--text-color);
-    padding: 6px 12px;
+    padding: 10px;
     border-radius: 6px;
-    cursor: pointer;
-    font-weight: 500;
+    border: 1px solid var(--border);
+    background: var(--bg-main);
+    color: var(--text-main);
+    font-size: 0.85rem;
 }
 
-.secondary-btn:hover {
-    background-color: var(--btn-bg);
+#copy-btn {
+    padding: 10px 15px;
+    font-size: 0.85rem;
+    background: var(--primary);
+    color: white;
 }
 
-#status {
-    font-size: 1.2rem;
-    font-weight: bold;
-}
-
+/* GAMEPLAY VIEW */
 .scoreboard {
     display: flex;
     justify-content: space-between;
-    background-color: var(--btn-bg);
-    padding: 12px;
-    border-radius: 8px;
+    gap: 10px;
     margin-bottom: 20px;
 }
 
-.score-box {
+.score-card {
+    flex: 1;
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    padding: 10px;
+    border-radius: 10px;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    flex: 1;
-    font-size: 0.9rem;
 }
 
-.score-num {
-    font-size: 1.4rem;
+.score-card .label {
+    font-size: 0.75rem;
     font-weight: bold;
-    margin-top: 4px;
+    text-transform: uppercase;
+    color: var(--text-sub);
 }
 
-.board {
+.score-card .score {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.text-x { color: var(--color-x); }
+.text-o { color: var(--color-o); }
+.text-draw { color: var(--color-draw); }
+
+#status-display {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    min-height: 27px;
+}
+
+.grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(3, 1fr);
-    gap: 10px;
-    background-color: var(--border-color);
-    padding: 10px;
-    border-radius: 12px;
-    aspect-ratio: 1 / 1;
+    grid-gap: 10px;
+    margin-bottom: 25px;
 }
 
 .cell {
     background-color: var(--cell-bg);
-    border-radius: 8px;
+    border: 1px solid var(--border);
+    aspect-ratio: 1;
+    border-radius: 12px;
     display: flex;
-    justify-content: center;
     align-items: center;
-    font-size: 3rem;
-    font-weight: bold;
+    justify-content: center;
+    font-size: 2.5rem;
+    font-weight: 800;
     cursor: pointer;
-    user-select: none;
-    transition: background-color 0.2s;
+    transition: background-color 0.15s, transform 0.1s;
 }
 
 .cell:hover {
     background-color: var(--cell-hover);
 }
 
-.cell.X {
-    color: var(--x-color);
+.cell:active {
+    transform: scale(0.95);
 }
 
-.cell.O {
-    color: var(--o-color);
+.cell.x { color: var(--color-x); }
+.cell.o { color: var(--color-o); }
+
+.game-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+#rematch-btn {
+    background-color: var(--color-o);
+    color: white;
+}
+#rematch-btn:disabled {
+    background-color: var(--border);
+    color: var(--text-sub);
+    cursor: not-allowed;
 }

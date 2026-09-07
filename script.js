@@ -1,270 +1,236 @@
-// State Variables
-let board = Array(9).fill("");
-let isGameActive = false;
-let gameMode = "ai"; // "ai" or "p2p"
-let difficulty = "hard"; // "easy", "medium", "hard"
-let currentPlayer = "X";
-let scores = { X: 0, O: 0, draws: 0 };
+// --- CONFIGURATION ---
+// PASTE YOUR ROOT ABLY KEY HERE INDEED
+const ABLY_ROOT_KEY = "G38OGQ.uNt5bQ:3qxG6KLwoMWXjLtVdPU_UHIogInp2ScswHaePErQao0";
 
-// Audio Synthesis Function (No external assets required)
+// Initialize Audio Context for Procedural Web Audio Synth Effects
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
 function playSound(type) {
-    try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
 
-        const now = ctx.currentTime;
+    const now = audioCtx.currentTime;
 
-        if (type === 'click') {
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(400, now);
-            osc.frequency.exponentialRampToValueAtTime(150, now + 0.1);
-            gain.gain.setValueAtTime(0.3, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-            osc.start(now);
-            osc.stop(now + 0.1);
-        } else if (type === 'win') {
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(300, now);
-            osc.frequency.setValueAtTime(450, now + 0.1);
-            osc.frequency.setValueAtTime(600, now + 0.2);
-            gain.gain.setValueAtTime(0.4, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-            osc.start(now);
-            osc.stop(now + 0.4);
-        } else if (type === 'draw') {
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(200, now);
-            osc.frequency.linearRampToValueAtTime(100, now + 0.3);
-            gain.gain.setValueAtTime(0.3, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-            osc.start(now);
-            osc.stop(now + 0.3);
-        }
-    } catch (e) {
-        console.log("Audio not supported or blocked: ", e);
+    if (type === 'click') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.exponentialRampToValueAtTime(1200, now + 0.08);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.08);
+        osc.start(now);
+        osc.stop(now + 0.08);
+    } else if (type === 'win') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(523.25, now); // C5
+        osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+        osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
+        osc.frequency.exponentialRampToValueAtTime(1046.50, now + 0.4); // C6
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.5);
+        osc.start(now);
+        osc.stop(now + 0.5);
+    } else if (type === 'draw') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.linearRampToValueAtTime(150, now + 0.2);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.25);
+        osc.start(now);
+        osc.stop(now + 0.25);
     }
 }
 
-// DOM Elements
-const menuScreen = document.getElementById("menu-screen");
-const gameScreen = document.getElementById("game-screen");
-const boardElement = document.getElementById("board");
-const statusElement = document.getElementById("status");
-const themeToggle = document.getElementById("theme-toggle");
+// State variables
+let mySymbol = ''; // 'X' or 'O'
+let currentTurn = 'X';
+let roomId = '';
+let channel = null;
+let boardState = Array(9).fill('');
+let scores = { X: 0, O: 0, draws: 0 };
+let gameActive = false;
 
-// UI Config Selection Toggles
-document.getElementById("mode-ai").addEventListener("click", () => {
-    gameMode = "ai";
-    document.getElementById("mode-ai").classList.add("active");
-    document.getElementById("mode-p2p").classList.remove("active");
-    document.getElementById("difficulty-group").classList.remove("hidden");
+// DOM Hooking elements
+const menuScreen = document.getElementById('menu-screen');
+const gameScreen = document.getElementById('game-screen');
+const statusDisplay = document.getElementById('status-display');
+const connectionStatus = document.getElementById('connection-status');
+const cells = document.querySelectorAll('.cell');
+const scoreXDisplay = document.getElementById('score-x');
+const scoreODisplay = document.getElementById('score-o');
+const scoreDrawDisplay = document.getElementById('score-draw');
+const rematchBtn = document.getElementById('rematch-btn');
+
+// Parse Room ID out of URL if joining an existing link
+const urlParams = new URLSearchParams(window.location.search);
+const sharedRoomId = urlParams.get('room');
+
+if (sharedRoomId && ABLY_ROOT_KEY !== "PASTE_YOUR_ABLY_ROOT_KEY_HERE") {
+    roomId = sharedRoomId;
+    mySymbol = 'O'; // Joining player is O
+    initAblyConnection();
+}
+
+// Theme Mode Toggle Node
+document.getElementById('theme-toggle').addEventListener('click', () => {
+    document.body.classList.toggle('light-mode');
+    const isLight = document.body.classList.contains('light-mode');
+    document.getElementById('theme-toggle').innerText = isLight ? '🌙 Dark Mode' : '☀️ Light Mode';
 });
 
-document.getElementById("mode-p2p").addEventListener("click", () => {
-    gameMode = "p2p";
-    document.getElementById("mode-p2p").classList.add("active");
-    document.getElementById("mode-ai").classList.remove("active");
-    document.getElementById("difficulty-group").classList.add("hidden");
+// Create Room Handler
+document.getElementById('create-match-btn').addEventListener('click', () => {
+    if (ABLY_ROOT_KEY === "PASTE_YOUR_ABLY_ROOT_KEY_HERE") {
+        alert("Please open script.js and add your Ably Root API key first!");
+        return;
+    }
+    roomId = Math.random().toString(36).substring(2, 9);
+    mySymbol = 'X'; // Creator player is X
+    
+    const shareUrl = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+    document.getElementById('share-link-input').value = shareUrl;
+    document.getElementById('link-container').classList.remove('hidden');
+    
+    initAblyConnection();
 });
 
-["easy", "medium", "hard"].forEach(diff => {
-    document.getElementById(`diff-${diff}`).addEventListener("click", () => {
-        difficulty = diff;
-        ["easy", "medium", "hard"].forEach(d => {
-            document.getElementById(`diff-${d}`).classList.toggle("active", d === diff);
-        });
+// Copy Link Capability
+document.getElementById('copy-btn').addEventListener('click', () => {
+    const input = document.getElementById('share-link-input');
+    input.select();
+    document.execCommand('copy');
+    document.getElementById('copy-btn').innerText = 'Copied!';
+    setTimeout(() => { document.getElementById('copy-btn').innerText = 'Copy Link'; }, 2000);
+});
+
+// Initialize Ably connection and pipelines
+function initAblyConnection() {
+    connectionStatus.innerText = "🟡 Connecting to network...";
+    connectionStatus.style.color = "#f59e0b";
+
+    const realtime = new Ably.Realtime({ key: ABLY_ROOT_KEY });
+
+    realtime.connection.on('connected', () => {
+        connectionStatus.innerText = "🟢 Online & Connected";
+        connectionStatus.style.color = "#10b981";
+        
+        // Open Screen Interface
+        menuScreen.classList.add('hidden');
+        gameScreen.classList.remove('hidden');
+        
+        setupRoomChannel(realtime);
+    });
+
+    realtime.connection.on('failed', () => {
+        connectionStatus.innerText = "🔴 Connection Failed";
+        connectionStatus.style.color = "#ef4444";
+        alert("Ably connection failed. Double-check your API key inside script.js.");
+    });
+}
+
+function setupRoomChannel(realtime) {
+    channel = realtime.channels.get(`room-${roomId}`);
+
+    // Subscribe to Moves channel message broadcasts
+    channel.subscribe('move', (message) => {
+        const { index, symbol } = message.data;
+        applyMove(index, symbol);
+    });
+
+    // Subscribe to rematch actions
+    channel.subscribe('rematch', () => {
+        resetBoardLocally();
+    });
+
+    // Start setup tracking state
+    gameActive = true;
+    updateStatusMessage();
+}
+
+// Click interface event hooks for game board cells
+cells.forEach(cell => {
+    cell.addEventListener('click', (e) => {
+        const index = parseInt(e.target.getAttribute('data-index'));
+        
+        // Prevent click if conditions not met
+        if (!gameActive || currentTurn !== mySymbol || boardState[index] !== '') return;
+
+        // Push layout action out into network channel
+        channel.publish('move', { index, symbol: mySymbol });
     });
 });
 
-// Theme Management
-themeToggle.addEventListener("click", () => {
-    const currentTheme = document.documentElement.getAttribute("data-theme");
-    if (currentTheme === "dark") {
-        document.documentElement.removeAttribute("data-theme");
-        themeToggle.textContent = "🌙 Dark Mode";
-    } else {
-        document.documentElement.setAttribute("data-theme", "dark");
-        themeToggle.textContent = "☀️ Light Mode";
-    }
-});
-
-// Navigation & Actions
-document.getElementById("start-btn").addEventListener("click", () => {
-    menuScreen.classList.add("hidden");
-    gameScreen.classList.remove("hidden");
-    resetScores();
-    initGame();
-});
-
-document.getElementById("back-btn").addEventListener("click", () => {
-    gameScreen.classList.add("hidden");
-    menuScreen.classList.remove("hidden");
-    isGameActive = false;
-});
-
-document.getElementById("reset-btn").addEventListener("click", () => {
-    initGame();
-});
-
-// Game Core Logic
-function initGame() {
-    board = Array(9).fill("");
-    currentPlayer = "X";
-    isGameActive = true;
-    
-    // Update Score Labels
-    document.getElementById("label-p1").textContent = "Player X";
-    if (gameMode === "ai") {
-        const capitalize = difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
-        document.getElementById("label-p2").textContent = `AI (${capitalize})`;
-    } else {
-        document.getElementById("label-p2").textContent = "Player O";
-    }
-
-    statusElement.textContent = "Player X's Turn";
-    
-    // Clear Board UI
-    document.querySelectorAll(".cell").forEach(cell => {
-        cell.textContent = "";
-        cell.className = "cell";
-    });
-}
-
-function resetScores() {
-    scores = { X: 0, O: 0, draws: 0 };
-    updateScoreboardUI();
-}
-
-function updateScoreboardUI() {
-    document.getElementById("score-p1").textContent = scores.X;
-    document.getElementById("score-p2").textContent = scores.O;
-    document.getElementById("score-draws").textContent = scores.draws;
-}
-
-boardElement.addEventListener("click", (e) => {
-    const cell = e.target;
-    if (!cell.classList.contains("cell") || !isGameActive) return;
-    
-    const index = parseInt(cell.getAttribute("data-index"));
-    if (board[index] !== "") return;
-
-    if (gameMode === "ai" && currentPlayer === "O") return; // Block clicking on AI turn
-
-    handleMove(index);
-});
-
-function handleMove(index) {
-    board[index] = currentPlayer;
-    const cell = document.querySelector(`[data-index="${index}"]`);
-    cell.textContent = currentPlayer;
-    cell.classList.add(currentPlayer);
+function applyMove(index, symbol) {
+    boardState[index] = symbol;
+    cells[index].innerText = symbol;
+    cells[index].classList.add(symbol.toLowerCase());
     playSound('click');
 
-    if (checkWin(board, currentPlayer)) {
-        statusElement.textContent = `${currentPlayer === 'X' ? 'Player X' : (gameMode === 'ai' ? 'AI' : 'Player O')} Wins!`;
-        scores[currentPlayer]++;
-        updateScoreboardUI();
-        isGameActive = false;
+    if (checkWin(symbol)) {
+        gameActive = false;
+        scores[symbol]++;
+        updateScoreboardDisplay();
+        statusDisplay.innerHTML = `<span class="text-${symbol.toLowerCase()}">Player ${symbol} Wins!</span>`;
         playSound('win');
-        return;
-    }
-
-    if (board.every(cell => cell !== "")) {
-        statusElement.textContent = "It's a Draw!";
+        rematchBtn.removeAttribute('disabled');
+    } else if (boardState.every(cell => cell !== '')) {
+        gameActive = false;
         scores.draws++;
-        updateScoreboardUI();
-        isGameActive = false;
+        updateScoreboardDisplay();
+        statusDisplay.innerHTML = `<span class="text-draw">Match ends in a Draw!</span>`;
         playSound('draw');
-        return;
-    }
-
-    // Switch turns
-    currentPlayer = currentPlayer === "X" ? "O" : "X";
-    statusElement.textContent = gameMode === "ai" && currentPlayer === "O" ? "AI Thinking..." : `Player ${currentPlayer}'s Turn`;
-
-    if (gameMode === "ai" && currentPlayer === "O" && isGameActive) {
-        setTimeout(makeAIMove, 400); // Small artificial delay
-    }
-}
-
-// AI Engine
-function makeAIMove() {
-    let availableMoves = [];
-    board.forEach((val, idx) => { if (val === "") availableMoves.push(idx); });
-
-    let move;
-    if (difficulty === "easy") {
-        move = availableMoves[Math.floor(Math.random() * availableMoves.length)];
-    } else if (difficulty === "medium") {
-        if (Math.random() < 0.5) {
-            move = getBestMove();
-        } else {
-            move = availableMoves[Math.floor(Math.random() * availableMoves.length)];
-        }
+        rematchBtn.removeAttribute('disabled');
     } else {
-        move = getBestMove();
-    }
-
-    if (move !== undefined) {
-        handleMove(move);
+        currentTurn = currentTurn === 'X' ? 'O' : 'X';
+        updateStatusMessage();
     }
 }
 
-function checkWin(b, player) {
-    const wins = [
-        [0,1,2], [3,4,5], [6,7,8], // Horizontal
-        [0,3,6], [1,4,7], [2,5,8], // Vertical
-        [0,4,8], [2,4,6]           // Diagonal
+function updateStatusMessage() {
+    if (currentTurn === mySymbol) {
+        statusDisplay.innerHTML = `Your Turn (<span class="text-${mySymbol.toLowerCase()}">${mySymbol}</span>)`;
+    } else {
+        statusDisplay.innerHTML = `Waiting for opponent (<span class="text-${currentTurn.toLowerCase()}">${currentTurn}</span>)...`;
+    }
+}
+
+function checkWin(player) {
+    const winConditions = [
+        [0, 1, 2], [3, 4, 5], [6, 7, 8], // Horizontals
+        [0, 3, 6], [1, 4, 7], [2, 5, 8], // Verticals
+        [0, 4, 8], [2, 4, 6]             // Diagonals
     ];
-    return wins.some(cond => cond.every(idx => b[idx] === player));
+    return winConditions.some(combination => {
+        return combination.every(index => boardState[index] === player);
+    });
 }
 
-function getBestMove() {
-    let bestScore = -Infinity;
-    let move;
-    for (let i = 0; i < 9; i++) {
-        if (board[i] === "") {
-            board[i] = "O";
-            let score = minimax(board, 0, false);
-            board[i] = "";
-            if (score > bestScore) {
-                bestScore = score;
-                move = i;
-            }
-        }
-    }
-    return move;
+function updateScoreboardDisplay() {
+    scoreXDisplay.innerText = scores.X;
+    scoreODisplay.innerText = scores.O;
+    scoreDrawDisplay.innerText = scores.draws;
 }
 
-function minimax(b, depth, isMaximizing) {
-    if (checkWin(b, "O")) return 10 - depth;
-    if (checkWin(b, "X")) return depth - 10;
-    if (b.every(cell => cell !== "")) return 0;
+// Rematch request
+rematchBtn.addEventListener('click', () => {
+    channel.publish('rematch', {});
+});
 
-    if (isMaximizing) {
-        let bestScore = -Infinity;
-        for (let i = 0; i < 9; i++) {
-            if (b[i] === "") {
-                b[i] = "O";
-                let score = minimax(b, depth + 1, false);
-                b[i] = "";
-                bestScore = Math.max(score, bestScore);
-            }
-        }
-        return bestScore;
-    } else {
-        let bestScore = Infinity;
-        for (let i = 0; i < 9; i++) {
-            if (b[i] === "") {
-                b[i] = "X";
-                let score = minimax(b, depth + 1, true);
-                b[i] = "";
-                bestScore = Math.min(score, bestScore);
-            }
-        }
-        return bestScore;
-    }
+function resetBoardLocally() {
+    boardState = Array(9).fill('');
+    currentTurn = 'X';
+    gameActive = true;
+    rematchBtn.setAttribute('disabled', 'true');
+    cells.forEach(cell => {
+        cell.innerText = '';
+        cell.className = 'cell';
+    });
+    updateStatusMessage();
 }
+
+// Exit action handler
+document.getElementById('exit-btn').addEventListener('click', () => {
+    window.location.search = ''; // Strips query parameters out to return cleanly home
+});
