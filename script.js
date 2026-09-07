@@ -1,7 +1,7 @@
 // =========================================================
 // 🛠️ STEP 1: PASTE YOUR ABLY ROOT API KEY BETWEEN THE QUOTES
 // =========================================================
-const ABLY_ROOT_KEY = "PASTE_YOUR_ABLY_ROOT_KEY_HERE";
+const ABLY_ROOT_KEY = "G38OGQ.uNt5bQ:3qxG6KLwoMWXjLtVdPU_UHIogInp2ScswHaePErQao0";
 
 const urlParams = new URLSearchParams(window.location.search);
 const sharedRoomId = urlParams.get('room');
@@ -25,8 +25,12 @@ if (sharedRoomId && window.location.search.includes('room=')) {
     } else {
         roomId = sharedRoomId;
         mySymbol = 'O'; 
+        
+        // Render current window link straight to sidebar text panel input
+        document.getElementById('sidebar-link-input').value = window.location.href;
+        
         document.getElementById('menu-screen').style.display = 'none';
-        document.getElementById('game-screen').style.display = 'block';
+        document.getElementById('game-screen').style.display = 'flex';
         initAblyConnection();
     }
 } else {
@@ -44,15 +48,30 @@ document.getElementById('create-room-btn').addEventListener('click', () => {
     roomId = Math.random().toString(36).substring(2, 9);
     const matchUrl = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
     
+    // Render the match path string inside both screens
     const linkDisplay = document.getElementById('link-display');
     linkDisplay.style.display = 'block';
     linkDisplay.innerHTML = `Send this link to your friend:<br><a href="${matchUrl}" target="_blank">${matchUrl}</a>`;
+    document.getElementById('sidebar-link-input').value = matchUrl;
     
     mySymbol = 'X';
     initAblyConnection();
     
     document.getElementById('menu-screen').style.display = 'none';
-    document.getElementById('game-screen').style.display = 'block';
+    document.getElementById('game-screen').style.display = 'flex'; // Uses flex layout for board + sidebar
+});
+
+// Interactive Sidebar Clipboard Copy Logic Node
+document.getElementById('copy-link-btn').addEventListener('click', () => {
+    const linkInput = document.getElementById('sidebar-link-input');
+    linkInput.select();
+    linkInput.setSelectionRange(0, 99999); // Mobile compliance override
+    navigator.clipboard.writeText(linkInput.value);
+    
+    // Briefly toggle active feedback message
+    const toast = document.getElementById('copy-toast');
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, 2000);
 });
 
 // Initialize Realtime Sync Pipe
@@ -144,4 +163,3 @@ function checkMatchState() {
         document.getElementById('reset-game-btn').style.display = 'block';
     }
 }
-
