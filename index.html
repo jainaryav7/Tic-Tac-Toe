@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Tic-Tac-Toe Enhanced</title>
+    <!-- Ably Network Connection -->
+    <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
+    <!-- Connect to separate style sheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <button class="toggle-btn" id="theme-toggle">🌙</button>
+
+    <!-- MENU SCREEN -->
+    <div class="container" id="menu-screen" style="display: block;">
+        <h2>Online Tic-Tac-Toe</h2>
+        <p>Play seamlessly with a friend across devices</p>
+        <button class="menu-btn" id="create-room-btn">Create Online Match Link</button>
+        <div id="link-display" style="display: none;"></div>
+    </div>
+
+    <!-- GAME SCREEN (BOARD + SIDEBAR BUNDLE) -->
+    <div class="game-wrapper" id="game-screen" style="display: none;">
+        
+        <!-- Left Side: Core Game Board Layout -->
+        <div class="container game-box">
+            <div class="score-board">
+                <div>Player X: <span id="score-x">0</span></div>
+                <div>Draws: <span id="score-draw">0</span></div>
+                <div>Player O: <span id="score-o">0</span></div>
+            </div>
+            <h3 id="status-indicator">Connecting to game...</h3>
+            <div class="grid">
+                <button class="cell" data-index="0"></button>
+                <button class="cell" data-index="1"></button>
+                <button class="cell" data-index="2"></button>
+                <button class="cell" data-index="3"></button>
+                <button class="cell" data-index="4"></button>
+                <button class="cell" data-index="5"></button>
+                <button class="cell" data-index="6"></button>
+                <button class="cell" data-index="7"></button>
+                <button class="cell" data-index="8"></button>
+            </div>
+            <button class="menu-btn" id="reset-game-btn" style="display: none; background-color: #6b7280;">Play Again</button>
+        </div>
+
+        <!-- Right Side: Persistent Invite Sidebar Panel -->
+        <div class="sidebar">
+            <h4>Match Info</h4>
+            <p>Need your friend to join? Send them this link:</p>
+            <input type="text" id="sidebar-link-input" readonly>
+            <button class="menu-btn" id="copy-link-btn" style="padding: 10px; margin-top: 10px;">📋 Copy Link</button>
+            <p id="copy-toast" style="color: #10b981; font-size: 0.85rem; margin-top: 8px; font-weight: bold; display: none;">Link copied to clipboard!</p>
+        </div>
+
+    </div>
+
+    <!-- Connect to separate logic sheet -->
+    <script src="script.js"></script>
+</body>
+</html>
