@@ -162,12 +162,14 @@ function playAudioTone(freq, duration) {
 }
 
 // Win and Score calculations
-// Win and Score calculations
 function checkMatchState() {
     const grid = Array.from(cells).map(c => c.innerText);
     
-    // FIXED: Added the explicit index configurations back into the pattern scanner
-    const patterns = [, [3, 4, 5], [6, 7, 8], // Rows, [1, 4, 7], [2, 5, 8], // Columns, [2, 4, 6]             // Diagonals
+    // All possible winning combinations
+    const patterns = [
+        [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+        [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+        [0, 4, 8], [2, 4, 6]             // Diagonals
     ];
     
     for (let combo of patterns) {
@@ -199,4 +201,3 @@ function checkMatchState() {
         document.getElementById('reset-game-btn').style.display = 'block';
     }
 }
-
