@@ -162,30 +162,41 @@ function playAudioTone(freq, duration) {
 }
 
 // Win and Score calculations
+// Win and Score calculations
 function checkMatchState() {
     const grid = Array.from(cells).map(c => c.innerText);
+    
+    // FIXED: Added the explicit index configurations back into the pattern scanner
     const patterns = [, [3, 4, 5], [6, 7, 8], // Rows, [1, 4, 7], [2, 5, 8], // Columns, [2, 4, 6]             // Diagonals
     ];
     
     for (let combo of patterns) {
-        if (grid[combo[0]] && grid[combo[0]] === grid[combo[1]] && grid[combo[0]] === grid[combo[2]]) {
-            const winner = grid[combo[0]];
+        const [a, b, c] = combo;
+        if (grid[a] && grid[a] === grid[b] && grid[a] === grid[c]) {
+            const winner = grid[a];
             document.getElementById('status-indicator').innerText = winner === mySymbol ? "You Win! 🎉" : `Player ${winner} Wins! 😔`;
+            
+            // Increment local state score tallies
             scores[winner]++;
             document.getElementById(`score-${winner.toLowerCase()}`).innerText = scores[winner];
+            
+            // Lock out further moves immediately
             currentTurn = 'NONE';
-            playAudioTone(880, 0.25); 
+            playAudioTone(880, 0.25); // Winning chime
             document.getElementById('reset-game-btn').style.display = 'block';
             return;
         }
     }
     
+    // Check for standard Draw states
     if (!grid.includes('')) {
         document.getElementById('status-indicator').innerText = "It's a Draw! 🤝";
         scores.draws++;
         document.getElementById('score-draw').innerText = scores.draws;
+        
         currentTurn = 'NONE';
-        playAudioTone(300, 0.2); 
+        playAudioTone(300, 0.2); // Draw low note
         document.getElementById('reset-game-btn').style.display = 'block';
     }
 }
+
