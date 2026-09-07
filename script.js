@@ -56,6 +56,8 @@ document.getElementById('create-room-btn').addEventListener('click', () => {
     
     document.getElementById('menu-screen').style.display = 'none';
     document.getElementById('game-screen').style.display = 'flex';
+    // Update the layout status right away so players know who starts
+    document.getElementById('status-indicator').innerText = `You are Player ${mySymbol}. Player ${currentTurn} starts!`;
 });
 
 document.getElementById('copy-link-btn').addEventListener('click', () => {
@@ -105,8 +107,11 @@ document.getElementById('reset-game-btn').addEventListener('click', () => {
 
 function resetBoardLocally() {
     cells.forEach(cell => cell.innerText = '');
-    currentTurn = 'X';
-    document.getElementById('status-indicator').innerText = `Game Reset! Player X's Turn`;
+    
+    // Choose a new random starter for the next round
+    currentTurn = Math.random() < 0.5 ? 'X' : 'O';
+    
+    document.getElementById('status-indicator').innerText = `Game Reset! Player ${currentTurn}'s Turn`;
     document.getElementById('reset-game-btn').style.display = 'none';
 }
 
