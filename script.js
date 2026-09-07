@@ -7,7 +7,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const sharedRoomId = urlParams.get('room');
 let roomId = '';
 let mySymbol = 'X'; 
-let currentTurn = Math.random() < 0.5 ? 'X' : 'O';
+let currentTurn = 'X'; // Default value, will be synced by host
 let channel;
 let ably;
 let scores = { X: 0, O: 0, draws: 0 };
@@ -27,7 +27,6 @@ if (sharedRoomId && window.location.search.includes('room=')) {
         mySymbol = 'O'; 
         
         document.getElementById('sidebar-link-input').value = window.location.href;
-        
         document.getElementById('menu-screen').style.display = 'none';
         document.getElementById('game-screen').style.display = 'flex';
         initAblyConnection();
@@ -37,7 +36,7 @@ if (sharedRoomId && window.location.search.includes('room=')) {
     document.getElementById('game-screen').style.display = 'none';
 }
 
-// Host Button Action
+// Host Button Action (Player X generates the game)
 document.getElementById('create-room-btn').addEventListener('click', () => {
     if (ABLY_ROOT_KEY === "PASTE_YOUR_ABLY_ROOT_KEY_HERE") {
         alert("Please paste your Ably key inside script.js first!");
@@ -46,20 +45,24 @@ document.getElementById('create-room-btn').addEventListener('click', () => {
     roomId = Math.random().toString(36).substring(2, 9);
     const matchUrl = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
     
-    const linkDisplay = document.getElementById('link-display');
-    linkDisplay.style.display = 'block';
-    linkDisplay.innerHTML = `Send this link to your friend:<br><a href="${matchUrl}" target="_blank">${matchUrl}</a>`;
     document.getElementById('sidebar-link-input').value = matchUrl;
-    
     mySymbol = 'X';
+    
+    // HOST ALONE ROLLS THE STARTER TO KEEP DEVICES IN SYNC
+    currentTurn = Math.random() < 0.5 ? 'X' : 'O';
+    
     initAblyConnection();
     
+    // Host broadcasts the random starting turn so Player O updates automatically
+    setTimeout(() => {
+        channel.publish('game-move', { action: 'sync-turn', turn: currentTurn });
+    }, 1000);
+
     document.getElementById('menu-screen').style.display = 'none';
     document.getElementById('game-screen').style.display = 'flex';
-    // Update the layout status right away so players know who starts
-    document.getElementById('status-indicator').innerText = `You are Player ${mySymbol}. Player ${currentTurn} starts!`;
 });
 
+// Interactive Sidebar Clipboard Copy Logic
 document.getElementById('copy-link-btn').addEventListener('click', () => {
     const linkInput = document.getElementById('sidebar-link-input');
     linkInput.select();
@@ -71,12 +74,14 @@ document.getElementById('copy-link-btn').addEventListener('click', () => {
     setTimeout(() => { toast.style.display = 'none'; }, 2000);
 });
 
+// Initialize Realtime Sync Pipe
 function initAblyConnection() {
     ably = new Ably.Realtime(ABLY_ROOT_KEY);
     channel = ably.channels.get(`room-${roomId}`);
     
-    document.getElementById('status-indicator').innerText = `You are Player ${mySymbol}. Waiting for opponent...`;
+    updateStatusText();
 
+    // Network event receiver
     channel.subscribe('game-move', (message) => {
         const data = message.data;
         
@@ -85,14 +90,29 @@ function initAblyConnection() {
             cell.innerText = data.symbol;
             playAudioTone(550, 0.06); 
             currentTurn = currentTurn === 'X' ? 'O' : 'X';
-            document.getElementById('status-indicator').innerText = `Player ${currentTurn}'s Turn`;
+            updateStatusText();
             checkMatchState();
         } else if (data.action === 'reset') {
-            resetBoardLocally();
+            resetBoardLocally(data.nextTurn);
+        } else if (data.action === 'sync-turn') {
+            // Player O catches the host's random choice here
+            currentTurn = data.turn;
+            updateStatusText();
         }
     });
 }
 
+// Update status text helpers
+function updateStatusText() {
+    if (currentTurn === 'NONE') return;
+    if (currentTurn === mySymbol) {
+        document.getElementById('status-indicator').innerText = `Your Turn (${mySymbol})`;
+    } else {
+        document.getElementById('status-indicator').innerText = `Waiting for Player ${currentTurn}...`;
+    }
+}
+
+// Cell grid click listeners
 const cells = document.querySelectorAll('.cell');
 cells.forEach((cell, index) => {
     cell.addEventListener('click', () => {
@@ -101,20 +121,21 @@ cells.forEach((cell, index) => {
     });
 });
 
+// Reset game button listener
 document.getElementById('reset-game-btn').addEventListener('click', () => {
-    channel.publish('game-move', { action: 'reset' });
+    // Host rolls a fresh turn for the next round
+    const nextTurn = Math.random() < 0.5 ? 'X' : 'O';
+    channel.publish('game-move', { action: 'reset', nextTurn: nextTurn });
 });
 
-function resetBoardLocally() {
+function resetBoardLocally(nextTurn) {
     cells.forEach(cell => cell.innerText = '');
-    
-    // Choose a new random starter for the next round
-    currentTurn = Math.random() < 0.5 ? 'X' : 'O';
-    
-    document.getElementById('status-indicator').innerText = `Game Reset! Player ${currentTurn}'s Turn`;
+    currentTurn = nextTurn;
+    updateStatusText();
     document.getElementById('reset-game-btn').style.display = 'none';
 }
 
+// Web Audio Synthesizer Node generator
 function playAudioTone(freq, duration) {
     try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -130,14 +151,16 @@ function playAudioTone(freq, duration) {
     } catch(e){}
 }
 
+// Win and Score calculations
 function checkMatchState() {
     const grid = Array.from(cells).map(c => c.innerText);
-    const patterns = [[0,1,2], [3,4,5], [6,7,8], [0,3,6], [1,4,7], [2,5,8], [0,4,8], [2,4,6]];
+    const patterns = [, [3, 4, 5], [6, 7, 8], // Rows, [1, 4, 7], [2, 5, 8], // Columns, [2, 4, 6]             // Diagonals
+    ];
     
     for (let combo of patterns) {
         if (grid[combo[0]] && grid[combo[0]] === grid[combo[1]] && grid[combo[0]] === grid[combo[2]]) {
             const winner = grid[combo[0]];
-            document.getElementById('status-indicator').innerText = `Player ${winner} Wins! 🎉`;
+            document.getElementById('status-indicator').innerText = winner === mySymbol ? "You Win! 🎉" : `Player ${winner} Wins! 😔`;
             scores[winner]++;
             document.getElementById(`score-${winner.toLowerCase()}`).innerText = scores[winner];
             currentTurn = 'NONE';
