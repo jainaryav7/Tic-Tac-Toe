@@ -7,7 +7,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const sharedRoomId = urlParams.get('room');
 let roomId = '';
 let mySymbol = 'X'; 
-let currentTurn = 'X'; // Default value, will be synced by host
+let currentTurn = 'X'; // Default fallback
 let channel;
 let ably;
 let scores = { X: 0, O: 0, draws: 0 };
@@ -48,16 +48,11 @@ document.getElementById('create-room-btn').addEventListener('click', () => {
     document.getElementById('sidebar-link-input').value = matchUrl;
     mySymbol = 'X';
     
-    // HOST ALONE ROLLS THE STARTER TO KEEP DEVICES IN SYNC
+    // Host generates the random starting turn locally first
     currentTurn = Math.random() < 0.5 ? 'X' : 'O';
     
     initAblyConnection();
     
-    // Host broadcasts the random starting turn so Player O updates automatically
-    setTimeout(() => {
-        channel.publish('game-move', { action: 'sync-turn', turn: currentTurn });
-    }, 1000);
-
     document.getElementById('menu-screen').style.display = 'none';
     document.getElementById('game-screen').style.display = 'flex';
 });
@@ -79,13 +74,30 @@ function initAblyConnection() {
     ably = new Ably.Realtime(ABLY_ROOT_KEY);
     channel = ably.channels.get(`room-${roomId}`);
     
-    updateStatusText();
+    // When the connection is officially open, trigger sync mechanics
+    ably.connection.on('connected', () => {
+        updateStatusText();
+        
+        // If I am Player O, yell out to the network that I have arrived!
+        if (mySymbol === 'O') {
+            channel.publish('game-move', { action: 'player-joined' });
+        }
+    });
 
     // Network event receiver
     channel.subscribe('game-move', (message) => {
         const data = message.data;
         
-        if (data.action === 'move') {
+        if (data.action === 'player-joined') {
+            // Player X hears Player O join, and immediately transmits the true starting turn state
+            if (mySymbol === 'X') {
+                channel.publish('game-move', { action: 'sync-turn', turn: currentTurn });
+            }
+        } else if (data.action === 'sync-turn') {
+            // Player O catches the true synchronized choice from the host
+            currentTurn = data.turn;
+            updateStatusText();
+        } else if (data.action === 'move') {
             const cell = document.querySelector(`[data-index="${data.index}"]`);
             cell.innerText = data.symbol;
             playAudioTone(550, 0.06); 
@@ -94,10 +106,6 @@ function initAblyConnection() {
             checkMatchState();
         } else if (data.action === 'reset') {
             resetBoardLocally(data.nextTurn);
-        } else if (data.action === 'sync-turn') {
-            // Player O catches the host's random choice here
-            currentTurn = data.turn;
-            updateStatusText();
         }
     });
 }
@@ -123,7 +131,6 @@ cells.forEach((cell, index) => {
 
 // Reset game button listener
 document.getElementById('reset-game-btn').addEventListener('click', () => {
-    // Host rolls a fresh turn for the next round
     const nextTurn = Math.random() < 0.5 ? 'X' : 'O';
     channel.publish('game-move', { action: 'reset', nextTurn: nextTurn });
 });
