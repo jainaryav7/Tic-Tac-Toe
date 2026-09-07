@@ -7,7 +7,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const sharedRoomId = urlParams.get('room');
 let roomId = '';
 let mySymbol = 'X'; 
-let currentTurn = 'X';
+let currentTurn = Math.random() < 0.5 ? 'X' : 'O';
 let channel;
 let ably;
 let scores = { X: 0, O: 0, draws: 0 };
