@@ -99,9 +99,14 @@ function initAblyConnection() {
             updateStatusText();
         } else if (data.action === 'move') {
             const cell = document.querySelector(`[data-index="${data.index}"]`);
-            cell.innerText = data.symbol;
-            playAudioTone(550, 0.06); 
-            currentTurn = currentTurn === 'X' ? 'O' : 'X';
+            // only fill if empty (prevents overwriting local moves / duplicate handling)
+            if (cell && cell.innerText === '') {
+                cell.innerText = data.symbol;
+                playAudioTone(550, 0.06);
+            }
+
+            // set next turn based on the symbol that was just played
+            currentTurn = data.symbol === 'X' ? 'O' : 'X';
             updateStatusText();
             checkMatchState();
         } else if (data.action === 'reset') {
@@ -121,14 +126,26 @@ function updateStatusText() {
 }
 
 // Cell grid click listeners
-// --- Replace it with this version ---
+// --- Updated: apply move locally first, then publish ---
 const cells = document.querySelectorAll('.cell');
 cells.forEach((cell, index) => {
     cell.addEventListener('click', () => {
         // SAFETY GATE: If currentTurn is 'NONE', the game is over. Freeze the board!
         if (currentTurn === 'NONE' || currentTurn !== mySymbol || cell.innerText !== '') return;
         
+        // Update the board locally immediately so the clicking player sees the move and detection runs
+        cell.innerText = mySymbol;
+        playAudioTone(550, 0.06);
+
+        // Publish the move to the other player(s)
         channel.publish('game-move', { action: 'move', index: index, symbol: mySymbol });
+
+        // Set next turn based on the symbol that was just played (more robust)
+        currentTurn = mySymbol === 'X' ? 'O' : 'X';
+        updateStatusText();
+
+        // Check for win/draw locally immediately
+        checkMatchState();
     });
 });
 
